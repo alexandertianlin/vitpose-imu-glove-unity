@@ -105,7 +105,7 @@ try:
             cx, cy = w // 2, h // 2
             bs = 200
             box = [cx - bs//2, cy - bs//2, cx + bs//2, cy + bs//2]
-        det = [np.array([box[0], box[1], box[2], box[3], 0.9])]
+        det = [np.array([[box[0], box[1], box[2], box[3], 0.9]])]
         vitposes = vitpose.predict_pose(img, det)
         for vp in vitposes:
             kps = vp["keypoints"]
