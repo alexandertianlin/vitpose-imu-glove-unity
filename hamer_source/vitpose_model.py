@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import sys
+import urllib.request
 
 import numpy as np
 import torch
@@ -15,10 +17,48 @@ ROOT_DIR = "./"
 VIT_DIR = os.path.join(ROOT_DIR, "third-party/ViTPose")
 
 class ViTPoseModel(object):
+
+    DOWNLOAD_URLS = {
+        'ViTPose-base-hand': {
+            'url': 'https://github.com/ViTAE-Transformer/ViTPose/releases/download/v1.1.0/vitpose-base-hand.pth',
+            'mirror': 'https://hf-mirror.com/ViTAE/ViTPose-base-hand/resolve/main/pytorch_model.bin',
+        },
+    }
+
+    def _ensure_downloaded(self, name: str, ckpt_path: str) -> None:
+        if os.path.exists(ckpt_path):
+            return
+        if name not in self.DOWNLOAD_URLS:
+            print(f'[ERROR] Model weights not found: {ckpt_path}')
+            print(f'  Please manually download for {name} and place at:')
+            print(f'  {ckpt_path}')
+            sys.exit(1)
+        urls = self.DOWNLOAD_URLS[name]
+        os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
+        for src_name, url in urls.items():
+            print(f'Downloading {name} from {src_name} ...')
+            print(f'  URL: {url}')
+            print(f'  -> {ckpt_path}')
+            try:
+                urllib.request.urlretrieve(url, ckpt_path)
+                print(f'  Download complete')
+                return
+            except Exception as e:
+                print(f'  Failed: {e}')
+                if os.path.exists(ckpt_path):
+                    os.remove(ckpt_path)
+        print(f'[ERROR] All download sources failed for {name}')
+        print(f'  Please manually download and place at: {ckpt_path}')
+        sys.exit(1)
+
     MODEL_DICT = {
         'ViTPose+-G (multi-task train, COCO)': {
             'config': f'{VIT_DIR}/configs/wholebody/2d_kpt_sview_rgb_img/topdown_heatmap/coco-wholebody/ViTPose_huge_wholebody_256x192.py',
             'model': f'{ROOT_DIR}/_DATA/vitpose_ckpts/vitpose+_huge/wholebody.pth',
+        },
+        'ViTPose-base-hand': {
+            'config': f'{VIT_DIR}/configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/hand/ViTPose_base_hand_256x192.py',
+            'model': f'{ROOT_DIR}/_DATA/vitpose_ckpts/vitpose-base-hand/hand.pth',
         },
     }
 
@@ -34,6 +74,7 @@ class ViTPoseModel(object):
     def _load_model(self, name: str) -> nn.Module:
         dic = self.MODEL_DICT[name]
         ckpt_path = dic['model']
+        self._ensure_downloaded(name, ckpt_path)
         model = init_pose_model(dic['config'], ckpt_path, device=self.device)
         return model
 
