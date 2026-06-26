@@ -184,7 +184,7 @@ try:
             last_boxes[0] = [cx_f - bw/2, cy_f - bh/2, cx_f + bw/2, cy_f + bh/2]
             last_hand_center = (int(cx_f), int(cy_f))
 
-        if last_boxes is not None and hands_confirmed:
+        if last_boxes is not None:
             ds = ViTDetDataset(cfg_h, img, last_boxes, last_right, rescale_factor=2.0)
             loader = torch.utils.data.DataLoader(ds, batch_size=4, shuffle=False, num_workers=0)
             for batch in loader:
