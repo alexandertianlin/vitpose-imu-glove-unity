@@ -153,25 +153,6 @@ try:
             rights_list = dedup_rights
  
 
-        # Hallucination rejection: aspect ratio, area, temporal jump
-        if last_hand_center is not None and boxes_list:
-            filtered_boxes = []; filtered_rights = []
-            for box, ri in zip(boxes_list, rights_list):
-                bw = box[2] - box[0]; bh = box[3] - box[1]
-                aspect = bw / bh if bh > 0 else 999.0
-                area = bw * bh
-                cx = (box[0] + box[2]) / 2.0
-                cy = (box[1] + box[3]) / 2.0
-                dist = math.sqrt((cx - last_hand_center[0])**2 + (cy - last_hand_center[1])**2)
-                valid = (0.2 <= aspect <= 4.0) and (2000 <= area <= 200000) and (dist < 400)
-                if valid:
-                    filtered_boxes.append(box)
-                    filtered_rights.append(ri)
-            if filtered_boxes:
-                boxes_list = filtered_boxes
-                rights_list = filtered_rights
-            else:
-                boxes_list = []; rights_list = []
 
         if boxes_list:
             consecutive_no_hand = 0

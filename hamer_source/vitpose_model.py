@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import os
-import sys
-import urllib.request
 
 import numpy as np
 import torch
@@ -10,37 +8,16 @@ import torch.nn as nn
 
 from mmpose.apis import inference_top_down_pose_model, init_pose_model, process_mmdet_results, vis_pose_result
 
-# Monkey-patch torch.load for legacy .pth checkpoints (PyTorch 2.6+ weights_only)
-_torch_load_orig = torch.load
-
-def _vitpose_torch_load(f, *args, **kwargs):
-    kwargs['weights_only'] = False
-    return _torch_load_orig(f, *args, **kwargs)
-
-torch.load = _vitpose_torch_load
-
 os.environ["PYOPENGL_PLATFORM"] = "egl"
 
 ROOT_DIR = "./"
 VIT_DIR = os.path.join(ROOT_DIR, "third-party/ViTPose")
 
 class ViTPoseModel(object):
-
-    DOWNLOAD_URLS = {
-        'ViTPose-base-hand': {
-            'url': 'https://huggingface.co/datasets/cpunion/vitpose-hand/resolve/main/vitpose_base_hand.pth?download=true',
-            'mirror': 'https://huggingface.co/datasets/cpunion/vitpose-hand/resolve/main/vitpose_base_hand.pth?download=true',
-        },
-    }
-
     MODEL_DICT = {
         'ViTPose+-G (multi-task train, COCO)': {
             'config': f'{VIT_DIR}/configs/wholebody/2d_kpt_sview_rgb_img/topdown_heatmap/coco-wholebody/ViTPose_huge_wholebody_256x192.py',
             'model': f'{ROOT_DIR}/_DATA/vitpose_ckpts/vitpose+_huge/wholebody.pth',
-        },
-        'ViTPose-base-hand': {
-            'config': f'{VIT_DIR}/configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/hand/ViTPose_base_hand_256x192.py',
-            'model': f'{ROOT_DIR}/_DATA/vitpose_ckpts/vitpose-base-hand/hand.pth',
         },
     }
 
@@ -56,40 +33,8 @@ class ViTPoseModel(object):
     def _load_model(self, name: str) -> nn.Module:
         dic = self.MODEL_DICT[name]
         ckpt_path = dic['model']
-        self._ensure_downloaded(name, ckpt_path)
-        model = init_pose_model(dic['config'], None, device=self.device)
-        # Load checkpoint with strict=False to handle key mismatches
-        import torch
-        ckpt = torch.load(ckpt_path, map_location='cpu', weights_only=False)
-        state_dict = ckpt.get('state_dict', ckpt)
-        model.load_state_dict(state_dict, strict=False)
+        model = init_pose_model(dic['config'], ckpt_path, device=self.device)
         return model
-
-    def _ensure_downloaded(self, name: str, ckpt_path: str) -> None:
-        if os.path.exists(ckpt_path):
-            return
-        if name not in self.DOWNLOAD_URLS:
-            print(f'[ERROR] Weights not found: {ckpt_path}')
-            print(f'  Please manually download for {name} and place at:')
-            print(f'  {ckpt_path}')
-            sys.exit(1)
-        urls = self.DOWNLOAD_URLS[name]
-        os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
-        for src_name, url in urls.items():
-            print(f'Downloading {name} from {src_name} ...')
-            print(f'  {url}')
-            print(f'  -> {ckpt_path}')
-            try:
-                urllib.request.urlretrieve(url, ckpt_path)
-                print(f'  Done ({os.path.getsize(ckpt_path) / 1024 / 1024:.1f} MB)')
-                return
-            except Exception as e:
-                print(f'  Failed: {e}')
-                if os.path.exists(ckpt_path):
-                    os.remove(ckpt_path)
-        print(f'[ERROR] All download sources failed for {name}')
-        print(f'  Please manually download and place at: {ckpt_path}')
-        sys.exit(1)
 
     def set_model(self, name: str) -> None:
         if name == self.model_name:
