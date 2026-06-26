@@ -251,19 +251,22 @@ try:
             last_send = time.time()
             ctxt = " ".join([FN[i]+":"+str(round(curld[i],2)) for i in range(5)])
             cv2.putText(canvas, ctxt, (8,20), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0,200,0), 1)
-        # Auto-calibrate IMU when hand is fully open (all curls < 0.3)
-        if hands_confirmed and g_kp3d is not None and time.time() - last_calibrate > 3.0:
+        # Debug: print curl values every frame
+        if hands_confirmed and g_kp3d is not None:
             curld_chk = [curl_from_kp(g_kp3d, i) for i in range(5)]
-            if all(c < 0.3 for c in curld_chk):
+            # Trigger when hand is reasonably open (all curls < 0.6 + spread)
+            # Print curls every 30 frames for threshold tuning
+            if fc > 0 and fc % 30 == 0:
+                print("CURLS:" + str([round(c,2) for c in curld_chk]), flush=True)
+            if all(c < 0.6 for c in curld_chk) and time.time() - last_calibrate > 3.0:
                 seq += 1
                 pkt_cal = {"type":"hamer_hand","seq":seq,"ts":int(time.time()*1000),"command":"calibrate"}
                 try:
                     sock.sendto(json.dumps(pkt_cal, separators=(",",":")).encode(), udp_addr)
-                    print("CALIBRATE seq=" + str(seq), flush=True)
+                    print("CALIBRATE seq=" + str(seq) + " curls=" + str([round(c,2) for c in curld_chk]), flush=True)
                 except:
                     pass
                 last_calibrate = time.time()
-
 
         # FPS
         fc += 1
