@@ -163,7 +163,7 @@ try:
                 cx = (box[0] + box[2]) / 2.0
                 cy = (box[1] + box[3]) / 2.0
                 dist = math.sqrt((cx - last_hand_center[0])**2 + (cy - last_hand_center[1])**2)
-                valid = (0.3 <= aspect <= 3.0) and (3000 <= area <= 120000) and (dist < 250)
+                valid = (0.2 <= aspect <= 4.0) and (2000 <= area <= 200000) and (dist < 400)
                 if valid:
                     filtered_boxes.append(box)
                     filtered_rights.append(ri)
