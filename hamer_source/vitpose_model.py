@@ -10,9 +10,17 @@ import torch.nn as nn
 
 from mmpose.apis import inference_top_down_pose_model, init_pose_model, process_mmdet_results, vis_pose_result
 
+# Monkey-patch torch.load for legacy .pth checkpoints (PyTorch 2.6+ weights_only)
+_torch_load_orig = torch.load
+
+def _vitpose_torch_load(f, *args, **kwargs):
+    kwargs['weights_only'] = False
+    return _torch_load_orig(f, *args, **kwargs)
+
+torch.load = _vitpose_torch_load
+
 os.environ["PYOPENGL_PLATFORM"] = "egl"
 
-# project root directory
 ROOT_DIR = "./"
 VIT_DIR = os.path.join(ROOT_DIR, "third-party/ViTPose")
 
@@ -20,36 +28,10 @@ class ViTPoseModel(object):
 
     DOWNLOAD_URLS = {
         'ViTPose-base-hand': {
-            'url': 'https://github.com/ViTAE-Transformer/ViTPose/releases/download/v1.1.0/vitpose-base-hand.pth',
-            'mirror': 'https://hf-mirror.com/ViTAE/ViTPose-base-hand/resolve/main/pytorch_model.bin',
+            'url': 'https://huggingface.co/datasets/cpunion/vitpose-hand/resolve/main/vitpose_base_hand.pth?download=true',
+            'mirror': 'https://huggingface.co/datasets/cpunion/vitpose-hand/resolve/main/vitpose_base_hand.pth?download=true',
         },
     }
-
-    def _ensure_downloaded(self, name: str, ckpt_path: str) -> None:
-        if os.path.exists(ckpt_path):
-            return
-        if name not in self.DOWNLOAD_URLS:
-            print(f'[ERROR] Model weights not found: {ckpt_path}')
-            print(f'  Please manually download for {name} and place at:')
-            print(f'  {ckpt_path}')
-            sys.exit(1)
-        urls = self.DOWNLOAD_URLS[name]
-        os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
-        for src_name, url in urls.items():
-            print(f'Downloading {name} from {src_name} ...')
-            print(f'  URL: {url}')
-            print(f'  -> {ckpt_path}')
-            try:
-                urllib.request.urlretrieve(url, ckpt_path)
-                print(f'  Download complete')
-                return
-            except Exception as e:
-                print(f'  Failed: {e}')
-                if os.path.exists(ckpt_path):
-                    os.remove(ckpt_path)
-        print(f'[ERROR] All download sources failed for {name}')
-        print(f'  Please manually download and place at: {ckpt_path}')
-        sys.exit(1)
 
     MODEL_DICT = {
         'ViTPose+-G (multi-task train, COCO)': {
@@ -78,6 +60,32 @@ class ViTPoseModel(object):
         model = init_pose_model(dic['config'], ckpt_path, device=self.device)
         return model
 
+    def _ensure_downloaded(self, name: str, ckpt_path: str) -> None:
+        if os.path.exists(ckpt_path):
+            return
+        if name not in self.DOWNLOAD_URLS:
+            print(f'[ERROR] Weights not found: {ckpt_path}')
+            print(f'  Please manually download for {name} and place at:')
+            print(f'  {ckpt_path}')
+            sys.exit(1)
+        urls = self.DOWNLOAD_URLS[name]
+        os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
+        for src_name, url in urls.items():
+            print(f'Downloading {name} from {src_name} ...')
+            print(f'  {url}')
+            print(f'  -> {ckpt_path}')
+            try:
+                urllib.request.urlretrieve(url, ckpt_path)
+                print(f'  Done ({os.path.getsize(ckpt_path) / 1024 / 1024:.1f} MB)')
+                return
+            except Exception as e:
+                print(f'  Failed: {e}')
+                if os.path.exists(ckpt_path):
+                    os.remove(ckpt_path)
+        print(f'[ERROR] All download sources failed for {name}')
+        print(f'  Please manually download and place at: {ckpt_path}')
+        sys.exit(1)
+
     def set_model(self, name: str) -> None:
         if name == self.model_name:
             return
@@ -103,7 +111,7 @@ class ViTPoseModel(object):
             image: np.ndarray,
             det_results: list[np.ndarray],
             box_score_threshold: float = 0.5) -> list[dict[str, np.ndarray]]:
-        image = image[:, :, ::-1]  # RGB -> BGR
+        image = image[:, :, ::-1]
         person_results = process_mmdet_results(det_results, 1)
         out, _ = inference_top_down_pose_model(self.model,
                                                image,
@@ -118,11 +126,11 @@ class ViTPoseModel(object):
                                kpt_score_threshold: float = 0.3,
                                vis_dot_radius: int = 4,
                                vis_line_thickness: int = 1) -> np.ndarray:
-        image = image[:, :, ::-1]  # RGB -> BGR
+        image = image[:, :, ::-1]
         vis = vis_pose_result(self.model,
                               image,
                               pose_results,
                               kpt_score_thr=kpt_score_threshold,
                               radius=vis_dot_radius,
                               thickness=vis_line_thickness)
-        return vis[:, :, ::-1]  # BGR -> RGB
+        return vis[:, :, ::-1]
