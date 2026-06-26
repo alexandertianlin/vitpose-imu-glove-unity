@@ -57,7 +57,12 @@ class ViTPoseModel(object):
         dic = self.MODEL_DICT[name]
         ckpt_path = dic['model']
         self._ensure_downloaded(name, ckpt_path)
-        model = init_pose_model(dic['config'], ckpt_path, device=self.device)
+        model = init_pose_model(dic['config'], None, device=self.device)
+        # Load checkpoint with strict=False to handle key mismatches
+        import torch
+        ckpt = torch.load(ckpt_path, map_location='cpu', weights_only=False)
+        state_dict = ckpt.get('state_dict', ckpt)
+        model.load_state_dict(state_dict, strict=False)
         return model
 
     def _ensure_downloaded(self, name: str, ckpt_path: str) -> None:
