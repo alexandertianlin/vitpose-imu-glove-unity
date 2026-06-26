@@ -19,7 +19,7 @@ from hamer.utils import recursive_to
 from vitpose_model import ViTPoseModel
 
 # Global vars
-g_kp3d = None; seq = 0; last_send = 0; SEND_INTV = 0.033
+g_kp3d = None; seq = 0; last_send = 0; SEND_INTV = 0.033; last_calibrate = 0
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 udp_addr = ("127.0.0.1", 5055)
 
@@ -251,6 +251,19 @@ try:
             last_send = time.time()
             ctxt = " ".join([FN[i]+":"+str(round(curld[i],2)) for i in range(5)])
             cv2.putText(canvas, ctxt, (8,20), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0,200,0), 1)
+        # Auto-calibrate IMU when hand is fully open (all curls < 0.3)
+        if hands_confirmed and g_kp3d is not None and time.time() - last_calibrate > 3.0:
+            curld_chk = [curl_from_kp(g_kp3d, i) for i in range(5)]
+            if all(c < 0.3 for c in curld_chk):
+                seq += 1
+                pkt_cal = {"type":"hamer_hand","seq":seq,"ts":int(time.time()*1000),"command":"calibrate"}
+                try:
+                    sock.sendto(json.dumps(pkt_cal, separators=(",",":")).encode(), udp_addr)
+                    print("CALIBRATE seq=" + str(seq), flush=True)
+                except:
+                    pass
+                last_calibrate = time.time()
+
 
         # FPS
         fc += 1
