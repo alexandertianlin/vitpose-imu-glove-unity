@@ -1,0 +1,37 @@
+﻿# ===== Large binaries (NOT uploaded) =====
+_DATA/
+*.pth
+*.ckpt
+*.task
+*.bin
+*.safetensors
+
+# ===== Python =====
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# ===== Unity (keep only Source) =====
+Library/
+Temp/
+obj/
+Logs/
+*.sln
+*.csproj
+UpgradeLog*.htm
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== IDE =====
+.vs/
+.idea/
+.vscode/
+
+# ===== Backups =====
+*.bak_round*
+*.bak*
