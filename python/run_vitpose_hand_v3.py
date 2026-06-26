@@ -100,26 +100,20 @@ try:
         boxes_list = []; rights_list = []
 
         if last_boxes is not None:
-            det = [np.array([last_boxes[0][0], last_boxes[0][1],
-                             last_boxes[0][2], last_boxes[0][3], 0.9])]
-            vitposes = vitpose.predict_pose(img, det)
-            for vp in vitposes:
-                kps = vp["keypoints"]
-                v = kps[:,2] > 0.5
-                if sum(v) < 8: continue
-                boxes_list.append([int(kps[v,0].min())-15, int(kps[v,1].min())-15,
-                                   int(kps[v,0].max())+15, int(kps[v,1].max())+15])
-                rights_list.append(1.0)
+            box = last_boxes[0]
         else:
-            vitposes = vitpose.predict_pose(img, [np.array([[0,0,w,h,0.9]])])
-            for vp in vitposes:
-                kps = vp["keypoints"]
-                v = kps[:,2] > 0.5
-                if sum(v) < 8: continue
-                boxes_list.append([int(kps[v,0].min())-20, int(kps[v,1].min())-20,
-                                   int(kps[v,0].max())+20, int(kps[v,1].max())+20])
-                rights_list.append(1.0)
-
+            cx, cy = w // 2, h // 2
+            bs = 200
+            box = [cx - bs//2, cy - bs//2, cx + bs//2, cy + bs//2]
+        det = [np.array([box[0], box[1], box[2], box[3], 0.9])]
+        vitposes = vitpose.predict_pose(img, det)
+        for vp in vitposes:
+            kps = vp["keypoints"]
+            v = kps[:,2] > 0.3
+            if sum(v) < 5: continue
+            boxes_list.append([int(kps[v,0].min())-15, int(kps[v,1].min())-15,
+                               int(kps[v,0].max())+15, int(kps[v,1].max())+15])
+            rights_list.append(1.0)
         if boxes_list:
             consecutive_no_hand = 0
             last_boxes = np.stack(boxes_list).astype(np.float32)
